@@ -45,6 +45,10 @@ class HtmlReader
     raise 'Implement this in a subclass!'
   end
 
+  def save_to_default_file?
+    true
+  end
+
   def start
     (@from_page..@to_page).each do |page|
       html_text = get_index_page(page)
@@ -52,6 +56,7 @@ class HtmlReader
       articles = parse_index_page(html_text)
       articles.each do |article|
         save_article(article)
+        save_article_to_file(article[:title], '-'*50)
       end
     end
   end
@@ -67,7 +72,8 @@ class HtmlReader
         retry
       else
         log e.message
-        log e.backtrace.join("/n")
+        log "error occurred when load page: #{url}"
+        log e.backtrace.join("\n")
       end
     ensure
       return html_text
@@ -99,8 +105,8 @@ class HtmlReader
     links.each do |link|
       title = link.content || link.attr('title')
       url   = link.attr('href')
-
       if valid_url?(url) && is_article_link?(link)
+
         articles << {title: title, url: complete_url(@index_url, url)}
       end
     end
@@ -116,7 +122,7 @@ class HtmlReader
 
     html_text = get_page(url)
     if html_text
-      save_article_to_file(html_text)
+      save_article_to_file(title, html_text)
       save_next_article(article, html_text)
     end
   end
@@ -136,10 +142,11 @@ class HtmlReader
     end
   end
 
-  def save_article_to_file(html_text)
+  def save_article_to_file(title, html_text)
     Dir.mkdir(@doc_dir) unless File.exist?(@doc_dir)
+    @file_name = title unless save_to_default_file?
 
-    file = File.open("#{@doc_dir}/#{@file_name}", 'a')
+    file = File.open("#{@doc_dir}/#{@file_name}.txt", 'a')
     @article_css.each do |css|
       items = html_text.css(css)
       items.each do |item|
@@ -147,6 +154,7 @@ class HtmlReader
       end
     end
 
+    file.puts '-'*50 if save_to_default_file?
     file.close
   end
 
